@@ -36,7 +36,8 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
-  final List<MarkerData> _markerData = List.generate(4, (_) => MarkerData());
+  final List<MarkerData> _markerData =
+      List.generate(4, (index) => MarkerData(latLng: LatLng(0, 5.0 * index)));
 
   Future<Uint8List> _capturePng(GlobalKey iconKey) async {
     if (iconKey.currentContext == null) {
@@ -60,7 +61,9 @@ class _MapPageState extends State<MapPage> {
   void _getMarkerBitmaps() async {
     Future<void> _getMarkerBitmap(int index) async {
       final Uint8List imageData = await _capturePng(_markerData[index].iconKey);
-      _markerData[index].iconBitmap = BitmapDescriptor.fromBytes(imageData);
+      setState(() {
+        _markerData[index].iconBitmap = BitmapDescriptor.fromBytes(imageData);
+      });
     }
 
     final List<Future<void>> futures = [];
@@ -84,14 +87,25 @@ class _MapPageState extends State<MapPage> {
           Transform.translate(
             offset: const Offset(-400, 0), // 画面外に描画
             child: ListView.builder(
-              itemCount: 4,
-              itemBuilder: (_, index) => CustomMarker(index + 1),
+              itemCount: _markerData.length,
+              itemBuilder: (_, index) => RepaintBoundary(
+                key: _markerData[index].iconKey,
+                child: CustomMarker(index + 1),
+              ),
             ),
           ),
-          const GoogleMap(
-            initialCameraPosition: CameraPosition(
+          GoogleMap(
+            initialCameraPosition: const CameraPosition(
               target: LatLng(0, 0),
             ),
+            markers: _markerData
+                .map((markerData) => Marker(
+                      markerId: MarkerId(markerData.iconKey.toString()),
+                      icon: markerData.iconBitmap ??
+                          BitmapDescriptor.defaultMarker,
+                      position: markerData.latLng,
+                    ))
+                .toSet(),
           ),
         ],
       ),
@@ -100,6 +114,9 @@ class _MapPageState extends State<MapPage> {
 }
 
 class MarkerData {
+  MarkerData({required this.latLng});
+
+  final LatLng latLng;
   final GlobalKey iconKey = GlobalKey();
   BitmapDescriptor? iconBitmap;
 }
@@ -116,13 +133,15 @@ class CustomMarker extends StatelessWidget {
       width: 72.0,
       child: Stack(
         children: [
-          Image.asset(
-            'assets/marker_icon.png',
-            fit: BoxFit.fill,
+          Align(
+            child: Image.asset(
+              'assets/marker_icon.png',
+              fit: BoxFit.fill,
+            ),
           ),
           Align(
             child: Container(
-              margin: const EdgeInsets.only(bottom: 12),
+              margin: const EdgeInsets.only(bottom: 16),
               child: Text(
                 num.toString(),
                 style: const TextStyle(
