@@ -1,5 +1,10 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_config/flutter_config.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,8 +36,45 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
+  final List<MarkerData> _markerData = List.generate(4, (_) => MarkerData());
+
+  Future<Uint8List> _capturePng(GlobalKey iconKey) async {
+    if (iconKey.currentContext == null) {
+      await Future.delayed(const Duration(milliseconds: 20));
+      return _capturePng(iconKey);
+    }
+
+    RenderRepaintBoundary boundary =
+        iconKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+    if (boundary.debugNeedsPaint) {
+      await Future.delayed(const Duration(milliseconds: 20));
+      return _capturePng(iconKey);
+    }
+
+    ui.Image image = await boundary.toImage(pixelRatio: 2.5);
+    ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    var pngBytes = byteData!.buffer.asUint8List();
+    return pngBytes;
+  }
+
+  void _getMarkerBitmaps() async {
+    Future<void> _getMarkerBitmap(int index) async {
+      final Uint8List imageData = await _capturePng(_markerData[index].iconKey);
+      _markerData[index].iconBitmap = BitmapDescriptor.fromBytes(imageData);
+    }
+
+    final List<Future<void>> futures = [];
+    for (int i = 0; i < 4; i++) {
+      futures.add(_getMarkerBitmap(i));
+    }
+
+    await Future.wait(futures);
+  }
+
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance!.addPostFrameCallback((_) => _getMarkerBitmaps());
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Flutter GoogleMap CustomMarker Sample'),
@@ -46,10 +88,20 @@ class _MapPageState extends State<MapPage> {
               itemBuilder: (_, index) => CustomMarker(index + 1),
             ),
           ),
+          const GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: LatLng(0, 0),
+            ),
+          ),
         ],
       ),
     );
   }
+}
+
+class MarkerData {
+  final GlobalKey iconKey = GlobalKey();
+  BitmapDescriptor? iconBitmap;
 }
 
 class CustomMarker extends StatelessWidget {
