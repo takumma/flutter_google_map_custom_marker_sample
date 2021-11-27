@@ -37,11 +37,51 @@ class _MapPageState extends State<MapPage> {
       appBar: AppBar(
         title: const Text('Flutter GoogleMap CustomMarker Sample'),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const <Widget>[],
-        ),
+      body: Stack(
+        children: <Widget>[
+          Transform.translate(
+            offset: const Offset(-400, 0), // 画面外に描画
+            child: ListView.builder(
+              itemCount: 4,
+              itemBuilder: (_, index) => CustomMarker(index + 1),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class CustomMarker extends StatelessWidget {
+  const CustomMarker(this.num, {Key? key}) : super(key: key);
+
+  final int num;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 72.0,
+      width: 72.0,
+      child: Stack(
+        children: [
+          Image.asset(
+            'assets/marker_icon.png',
+            fit: BoxFit.fill,
+          ),
+          Align(
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                num.toString(),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontSize: 18.0,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
